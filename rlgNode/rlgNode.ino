@@ -6,6 +6,7 @@
 #include <RFM69.h>    //get it here: https://www.github.com/lowpowerlab/rfm69
 #include <RFM69_ATC.h>//get it here: https://www.github.com/lowpowerlab/rfm69
 #include <SPI.h>
+#include <OneWire.h>
 
 //*********************************************************************************************
 //************ IMPORTANT SETTINGS - YOU MUST CHANGE/CONFIGURE TO FIT YOUR HARDWARE *************
@@ -19,22 +20,21 @@
 //*********************************************************************************************
 
 #define LED           9 // Moteinos have LEDs on D9
-
 #define SERIAL_BAUD   115200
 
-int TRANSMITPERIOD = 150; //transmit a packet to gateway so often (in ms)
-char payload[] = "123 ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+long TRANSMITPERIOD = 150000L; //transmit a packet to gateway so often (in ms)
+int DS18S20_Pin = 4; //DS18S20 Signal pin on digital 4
 char buff[20];
-byte sendSize=0;
 boolean requestACK = false;
 
 RFM69_ATC radio;
+//Temperature chip i/o
+OneWire ds(DS18S20_Pin);
 
 void setup() {
   Serial.begin(SERIAL_BAUD);
   radio.initialize(FREQUENCY,NODEID,NETWORKID);
   radio.encrypt(ENCRYPTKEY);
-  //radio.setFrequency(919000000); //set frequency to some custom frequency
   
 //Auto Transmission Control - dials down transmit power to save battery (-100 is the noise floor, -90 is still pretty good)
 //For indoor nodes that are pretty static and at pretty stable temperatures (like a MotionMote) -90dBm is quite safe
@@ -51,19 +51,13 @@ void setup() {
 
 long lastPeriod = 0;
 void loop() {
+  float temperature = getTemp();
+
   //process any serial input
   if (Serial.available() > 0)
   {
     char input = Serial.read();
-    if (input >= 48 && input <= 57) //[0,9]
-    {
-      TRANSMITPERIOD = 100 * (input-48);
-      if (TRANSMITPERIOD == 0) TRANSMITPERIOD = 1000;
-      Serial.print("\nChanging delay to ");
-      Serial.print(TRANSMITPERIOD);
-      Serial.println("ms\n");
-    }
-
+   
     if (input == 'r') //d=dump register values
       radio.readAllRegs();
   }
@@ -89,30 +83,20 @@ void loop() {
   if (currPeriod != lastPeriod)
   {
     lastPeriod=currPeriod;
+
+    Serial.println(millis());
+    Serial.println(lastPeriod);
+    Serial.print("Sending[");
+    Serial.print(temperature);
+    Serial.print("]: ");
     
-    if(sendSize==0)
-    {
-      sprintf(buff, "FLASH_MEM_ID:0x%X");
-      byte buffLen=strlen(buff);
-      if (radio.sendWithRetry(GATEWAYID, buff, buffLen))
-        Serial.print(" ok!");
-      else Serial.print(" nothing...");
-      //sendSize = (sendSize + 1) % 31;
-    }
-    else
-    {
-      Serial.print("Sending[");
-      Serial.print(sendSize);
-      Serial.print("]: ");
-      for(byte i = 0; i < sendSize; i++)
-        Serial.print((char)payload[i]);
-  
-      if (radio.sendWithRetry(GATEWAYID, payload, sendSize))
-       Serial.print(" ok!");
-      else Serial.print(" nothing...");
-    }
-    sendSize = (sendSize + 1) % 31;
-    Serial.println();
+    dtostrf(temperature, 5, 2, buff);
+    byte buffLen=strlen(buff);
+    
+    if (radio.sendWithRetry(GATEWAYID, buff, buffLen))
+      Serial.print(" ok!");
+    else Serial.print(" nothing...");
+      Serial.println();
     Blink(LED,3);
   }
 }
@@ -124,3 +108,51 @@ void Blink(byte PIN, int DELAY_MS)
   delay(DELAY_MS);
   digitalWrite(PIN,LOW);
 }
+
+float getTemp(){
+  //returns the temperature from one DS18S20 in DEG Celsius
+
+  byte data[12];
+  byte addr[8];
+
+  if ( !ds.search(addr)) {
+      //no more sensors on chain, reset search
+      ds.reset_search();
+      return -1000;
+  }
+
+  if ( OneWire::crc8( addr, 7) != addr[7]) {
+      Serial.println("CRC is not valid!");
+      return -1000;
+  }
+
+  if ( addr[0] != 0x10 && addr[0] != 0x28) {
+      Serial.print("Device is not recognized");
+      return -1000;
+  }
+
+  ds.reset();
+  ds.select(addr);
+  ds.write(0x44,1); // start conversion, with parasite power on at the end
+
+  byte present = ds.reset();
+  ds.select(addr);    
+  ds.write(0xBE); // Read Scratchpad
+
+  
+  for (int i = 0; i < 9; i++) { // we need 9 bytes
+    data[i] = ds.read();
+  }
+  
+  ds.reset_search();
+  
+  byte MSB = data[1];
+  byte LSB = data[0];
+
+  float tempRead = ((MSB << 8) | LSB); //using two's compliment
+  float TemperatureSum = tempRead / 16;
+  
+  return TemperatureSum;
+}
+
+
