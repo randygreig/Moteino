@@ -1,4 +1,5 @@
-// rlgNode - written by Randy Greig
+// rlgNode - by Randy Greig
+// Based on code written by Felix Rusu
 // Send temperature of attached DS18B20 1-wire sensor
 // RFM69 library and sample code by Felix Rusu - http://LowPowerLab.com/contact
 // Copyright Felix Rusu (2015)
