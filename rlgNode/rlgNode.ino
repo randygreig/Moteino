@@ -1,5 +1,5 @@
-// Sample RFM69 sender/node sketch, with ACK and optional encryption, and Automatic Transmission Control
-// Sends periodic messages of increasing length to gateway (id=1)
+// rlgNode - written by Randy Greig
+// Send temperature of attached DS18B20 1-wire sensor
 // RFM69 library and sample code by Felix Rusu - http://LowPowerLab.com/contact
 // Copyright Felix Rusu (2015)
 
@@ -11,7 +11,7 @@
 //*********************************************************************************************
 //************ IMPORTANT SETTINGS - YOU MUST CHANGE/CONFIGURE TO FIT YOUR HARDWARE *************
 //*********************************************************************************************
-#define NODEID        2    //must be unique for each node on same network (range up to 254, 255 is used for broadcast)
+#define NODEID        2   //must be unique for each node on same network (range up to 254, 255 is used for broadcast)
 #define NETWORKID     123  //the same on all nodes that talk to each other (range up to 255)
 #define GATEWAYID     1
 #define FREQUENCY     RF69_915MHZ
