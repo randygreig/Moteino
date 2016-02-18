@@ -1,4 +1,5 @@
-// Sample RFM69 receiver/gateway sketch, with ACK and optional encryption, and Automatic Transmission Control
+// rlgGateway - by Randy Greig
+// Based on code written by Felix Rusu
 // Passes through any wireless received messages to the serial port & responds to ACKs
 // RFM69 library and sample code by Felix Rusu - http://LowPowerLab.com/contact
 // Copyright Felix Rusu (2015)
